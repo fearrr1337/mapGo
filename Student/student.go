@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -31,13 +32,16 @@ type GradeRecord struct {
 }
 
 type Student struct {
-	ID         UUID
-	FullName   string
-	Grades     []GradeRecord
-	EnterDate  time.Time
-	CourseYear uint8
-	AVG        float64
-	Flags      StatusFlags
+	ID                UUID
+	FullName          string
+	Grades            []GradeRecord
+	EnterDate         time.Time
+	CourseYear        uint8
+	AVG               float64
+	Flags             StatusFlags
+	FailedExams       uint8
+	AcademicDebtDate  time.Time
+	FinancialDebtDate time.Time
 }
 
 var (
@@ -99,8 +103,16 @@ func (s *Student) setFlag(f StatusFlags, v bool) {
 	}
 }
 
+func (s *Student) clearFlag(f StatusFlags) {
+	s.setFlag(f, false)
+}
+
 func (s *Student) hasFlag(f StatusFlags) bool {
 	return s.Flags&f != 0
+}
+
+func (s *Student) ToggleFlag(flag StatusFlags) {
+	s.Flags ^= flag
 }
 
 func (s *Student) SetActive(v bool) {
@@ -112,7 +124,7 @@ func (s *Student) SetHonors(v bool) {
 }
 
 func (s *Student) SetFinancialDebt(v bool) {
-	s.setFlag(FlagAcademicDebt, v)
+	s.setFlag(FlagFinancialDebt, v)
 }
 
 func (s *Student) SetAcademicDebt(v bool) {
@@ -135,10 +147,27 @@ func (s *Student) IsFinancialDebt() bool {
 	return s.hasFlag(FlagFinancialDebt)
 }
 
-func (s *Student) IsAcatemicDebt() bool {
+func (s *Student) IsAcademicDebt() bool {
 	return s.hasFlag(FlagAcademicDebt)
 }
 
 func (s *Student) IsNonResident() bool {
 	return s.hasFlag(FlagNonResident)
+}
+
+func (student *Student) RetakeExam(subject string) {
+	if student.FailedExams == 0 {
+		fmt.Printf("У студента %s нет несданных экзаменов\n", student.FullName)
+		return
+	}
+
+	student.FailedExams--
+	fmt.Printf("Студент %s пересдал экзамен по предмету: %s. Осталось пересдач: %d\n",
+		student.FullName, subject, student.FailedExams)
+
+	if student.FailedExams == 0 {
+		student.clearFlag(FlagAcademicDebt)
+		student.AcademicDebtDate = time.Time{}
+		fmt.Printf("Академическая задолженность студента %s полностью погашена\n", student.FullName)
+	}
 }
